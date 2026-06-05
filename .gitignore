@@ -1,0 +1,20 @@
+﻿# Python
+__pycache__/
+*.py[cod]
+*.pyo
+
+# Virtual env
+.env
+.venv
+venv/
+
+# Auto-generated on deploy — do NOT commit
+models/
+artifacts/
+plots/
+
+# OS / IDE
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
