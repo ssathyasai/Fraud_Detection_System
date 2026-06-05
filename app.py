@@ -80,26 +80,40 @@ def score_transactions(df: pd.DataFrame) -> pd.DataFrame:
     """
     Slide a SEQ_LEN=5 window over the dataframe rows and predict fraud probability
     for each window. Rows that don't have a full preceding window get probability=NaN.
+    Returns df with a 'fraud_probability' column (NaN if model unavailable).
     """
     SEQ_LEN = 5
+    df = df.copy()
+    df["fraud_probability"] = np.nan
+
+    # Guard: required columns must exist
+    if "transaction_amount" not in df.columns or "transaction_sequence" not in df.columns:
+        return df
+
+    # Guard: need enough rows for at least one window
+    if len(df) < SEQ_LEN:
+        return df
+
     try:
         scaler = load_scaler()
         model  = load_model()
     except Exception:
-        df["fraud_probability"] = np.nan
         return df
 
-    feats = df[["transaction_amount", "transaction_sequence"]].values.astype(np.float32)
-    normed = scaler.transform(feats)
+    try:
+        feats  = df[["transaction_amount", "transaction_sequence"]].values.astype(np.float32)
+        normed = scaler.transform(feats)
 
-    probs = [np.nan] * len(df)
-    for i in range(SEQ_LEN, len(df) + 1):
-        window = normed[i - SEQ_LEN: i].reshape(1, SEQ_LEN, 2)
-        p = float(model.predict(window, verbose=0)[0][0])
-        probs[i - 1] = p
+        probs = [np.nan] * len(df)
+        for i in range(SEQ_LEN, len(df) + 1):
+            window = normed[i - SEQ_LEN: i].reshape(1, SEQ_LEN, 2)
+            p = float(model.predict(window, verbose=0)[0][0])
+            probs[i - 1] = p
 
-    df = df.copy()
-    df["fraud_probability"] = probs
+        df["fraud_probability"] = probs
+    except Exception:
+        pass  # leave as NaN — dashboard handles it gracefully
+
     return df
 
 def attention_weights(amounts: np.ndarray) -> np.ndarray:
@@ -162,15 +176,15 @@ if analyse_btn:
 
     # ── Dataset overview metrics ──────────────────────────────────────────────
     total   = len(df_scored)
-    n_fraud = int(df_scored["fraud"].sum()) if has_label else "—"
-    n_legit = total - n_fraud if has_label else "—"
-    n_high  = int((df_scored["fraud_probability"] >= risk_threshold).sum()) if has_probs else "—"
+    n_fraud = int(df_scored["fraud"].sum()) if has_label else None
+    n_legit = total - n_fraud if has_label else None
+    n_high  = int((df_scored["fraud_probability"] >= risk_threshold).sum()) if has_probs else None
 
     m1, m2, m3, m4 = st.columns(4)
     m1.metric("Total Transactions", f"{total:,}")
-    m2.metric("Labelled Fraud",     f"{n_fraud}" if has_label else "—")
-    m3.metric("Labelled Legit",     f"{n_legit}" if has_label else "—")
-    m4.metric(f"High Risk (≥{risk_threshold:.0%})", f"{n_high}")
+    m2.metric("Labelled Fraud",     f"{n_fraud}" if n_fraud is not None else "—")
+    m3.metric("Labelled Legit",     f"{n_legit}" if n_legit is not None else "—")
+    m4.metric(f"High Risk (≥{risk_threshold:.0%})", f"{n_high}" if n_high is not None else "—")
 
     # ─────────────────────────────────────────────────────────────────────────
     # STEP 2 — Fraud Probability
