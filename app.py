@@ -100,8 +100,6 @@ def get_model_and_scaler():
             model, scaler = train_in_memory(DATA)
             st.session_state["fraud_model"]  = model
             st.session_state["fraud_scaler"] = scaler
-        st.success("✅ Model ready!")
-        st.rerun()
     return st.session_state["fraud_model"], st.session_state["fraud_scaler"]
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -144,11 +142,6 @@ def attention_weights(amounts) -> np.ndarray:
     a = np.array(amounts, dtype=float)
     w = np.exp((a - a.mean()) / (a.std() + 1e-9))
     return w / w.sum()
-
-# ─────────────────────────────────────────────────────────────────────────────
-# Ensure model is ready before rendering UI
-# ─────────────────────────────────────────────────────────────────────────────
-model, scaler = get_model_and_scaler()
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Header
@@ -194,6 +187,9 @@ if analyse_btn:
         st.stop()
 
     st.markdown("---")
+
+    # Load / train model (lazy, cached in session_state)
+    model, scaler = get_model_and_scaler()
 
     with st.spinner("Scoring transactions…"):
         df_scored = score_transactions(df_raw, model, scaler)
