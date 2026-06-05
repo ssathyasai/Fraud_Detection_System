@@ -158,6 +158,17 @@ st.header("Step 1 — Upload Transaction Data")
 up_col, opt_col = st.columns([3, 2], gap="large")
 
 with up_col:
+    # Sample CSV download
+    sample_path = os.path.join(BASE, "data", "sample_upload.csv")
+    with open(sample_path, "rb") as f:
+        st.download_button(
+            label="⬇️ Download Sample CSV",
+            data=f,
+            file_name="sample_upload.csv",
+            mime="text/csv",
+            help="Download this to see the expected column format before uploading your own data",
+        )
+
     uploaded = st.file_uploader(
         "Upload CSV  (required columns: transaction_amount, transaction_sequence)",
         type=["csv"],
@@ -168,6 +179,18 @@ with up_col:
     else:
         df_raw = pd.read_csv(DATA)
         st.info(f"Using built-in sample dataset — {len(df_raw):,} rows")
+
+    with st.expander("📋 Expected CSV format"):
+        st.markdown("""
+| Column | Type | Description |
+|---|---|---|
+| `customer_id` | int | Unique customer identifier *(optional)* |
+| `transaction_amount` | float | Transaction value in dollars ***(required)*** |
+| `transaction_sequence` | int | Position of transaction in customer session ***(required)*** |
+| `fraud` | int (0/1) | Ground-truth label — 0 = legit, 1 = fraud *(optional)* |
+        """)
+        st.caption("Minimum required: `transaction_amount` and `transaction_sequence`. "
+                   "Include `fraud` column to see actual vs predicted comparison.")
 
 with opt_col:
     st.subheader("⚙️ Options")
